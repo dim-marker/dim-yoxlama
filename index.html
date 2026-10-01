@@ -28,8 +28,8 @@
             <!-- Tablı Pəncərə -->
             <div class="card">
                 <div class="tab-header">
-                    <button class="tab-btn active" onclick="switchTab('work-tab')">Şagirdin Cavabı</button>
-                    <button class="tab-btn" onclick="switchTab('criteria-tab')">Qiymətləndirmə Meyarı</button>
+                    <button class="tab-btn active" id="tab-work-btn">Şagirdin Cavabı</button>
+                    <button class="tab-btn" id="tab-criteria-btn">Qiymətləndirmə Meyarı</button>
                 </div>
 
                 <!-- Şagirdin İşi Tabı -->
@@ -55,7 +55,6 @@
                         <span id="status-tag" class="status-badge">Yoxlanılmayıb</span>
                     </div>
 
-                    <!-- İrəli/Geri Düymələri -->
                     <div class="nav-controls">
                         <button class="btn-nav" id="btn-prev">⬅ Əvvəlki</button>
                         <button class="btn-nav" id="btn-next">Növbəti ➡</button>
@@ -63,7 +62,6 @@
                 </div>
 
                 <div class="inputs-group">
-                    <!-- Bal Seçimi (Max 3) -->
                     <select id="score-select">
                         <option value="">Bal seçin</option>
                         <option value="0">0 Bal</option>
@@ -72,29 +70,42 @@
                         <option value="3">3 Bal</option>
                     </select>
 
-                    <!-- 1000 Simvol Rəy Yeri -->
                     <div class="textarea-box">
                         <textarea id="feedback-input" maxlength="1000" placeholder="Qeyd və ya rəy yazın (max 1000 simvol)..."></textarea>
                         <span class="char-counter" id="char-count">0 / 1000</span>
                     </div>
 
-                    <button class="btn-submit" id="btn-save">Yadda Saxla</button>
+                    <button class="btn-submit" id="btn-save">Yadda Saxla və Növbəti</button>
                 </div>
             </div>
 
         </div>
     </div>
 
+    <!-- 30 İş Yekun Hesabat Modalı -->
+    <div class="modal-overlay" id="report-modal">
+        <div class="modal-content">
+            <h2>Yoxlama Yekunlaşdı (30 İş)</h2>
+            <p id="accuracy-rate">Uyğunluq Faizi: 0%</p>
+            <div class="table-wrapper">
+                <table id="report-table">
+                    <thead>
+                        <tr>
+                            <th>№</th>
+                            <th>Şagird Kodu</th>
+                            <th>Sual №</th>
+                            <th>Etalon Bal</th>
+                            <th>Ekspert Balı</th>
+                            <th>Nəticə</th>
+                        </tr>
+                    </thead>
+                    <tbody id="report-body"></tbody>
+                </table>
+            </div>
+            <button class="btn-close-modal" id="btn-close-modal">Bağla</button>
+        </div>
+    </div>
+
     <script type="module" src="app.js"></script>
-    <script>
-        // Tab Dəyişmə Funksiyası
-        function switchTab(tabId) {
-            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-            
-            event.target.classList.add('active');
-            document.getElementById(tabId).classList.add('active');
-        }
-    </script>
 </body>
 </html>
