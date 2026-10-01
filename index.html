@@ -23,7 +23,7 @@
         header {
             background-color: #2c3e50;
             color: white;
-            padding: 15px 20px;
+            padding: 12px 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -73,43 +73,44 @@
         .app-container {
             display: none;
             flex: 1;
-            padding: 20px;
-            gap: 20px;
+            padding: 15px;
+            gap: 15px;
         }
 
         .main-content {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 20px;
+            gap: 15px;
             width: 100%;
         }
 
         .card {
             background: white;
             border-radius: 10px;
-            padding: 15px;
+            padding: 12px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.08);
             display: flex;
             flex-direction: column;
         }
 
         .card h3 {
-            margin-bottom: 12px;
+            margin-bottom: 8px;
             color: #34495e;
             border-bottom: 2px solid #ecf0f1;
-            padding-bottom: 8px;
+            padding-bottom: 6px;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            font-size: 16px;
         }
 
         .card h3 span {
-            font-size: 12px;
+            font-size: 11px;
             color: #7f8c8d;
             font-weight: normal;
         }
 
-        /* Zoom Sahəsi */
+        /* Kiçildilmiş Şəkil Pəncərələri (PicBox) */
         .img-box {
             flex: 1;
             display: flex;
@@ -119,7 +120,7 @@
             background-color: #1e1e1e;
             border: 1px solid #ccc;
             border-radius: 6px;
-            min-height: 420px;
+            height: 380px; /* Hündürlük azaldıldı */
             position: relative;
             cursor: grab;
             user-select: none;
@@ -133,13 +134,14 @@
             max-width: 100%;
             max-height: 100%;
             transform-origin: center center;
-            transition: transform 0.05s ease-out;
+            transition: transform 0.05s linear;
+            pointer-events: none;
         }
 
         .evaluation-panel {
             grid-column: span 2;
             background: white;
-            padding: 20px;
+            padding: 15px;
             border-radius: 10px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.08);
             display: flex;
@@ -149,7 +151,7 @@
         }
 
         .student-info {
-            font-size: 18px;
+            font-size: 17px;
             font-weight: bold;
             color: #2c3e50;
         }
@@ -169,7 +171,7 @@
         }
 
         .inputs-group select {
-            width: 120px;
+            width: 130px;
             cursor: pointer;
             font-weight: bold;
         }
@@ -197,9 +199,9 @@
         }
 
         .status-badge {
-            padding: 5px 12px;
+            padding: 4px 10px;
             border-radius: 20px;
-            font-size: 14px;
+            font-size: 13px;
             background-color: #e74c3c;
             color: white;
         }
@@ -231,7 +233,7 @@
             <div class="card">
                 <h3>Meyar <span>(Diyircəklə zoom edin)</span></h3>
                 <div class="img-box" id="box-criteria">
-                    <img id="criteria-img" src="" alt="Meyar şəkli yüklənir...">
+                    <img id="criteria-img" src="" alt="Meyar şəkli yüklənir..." draggable="false">
                 </div>
             </div>
 
@@ -239,7 +241,7 @@
             <div class="card">
                 <h3>Şagirdin Cavab Vərəqi <span>(Diyircəklə zoom edin)</span></h3>
                 <div class="img-box" id="box-work">
-                    <img id="work-img" src="" alt="Şagirdin yazı işi yüklənir...">
+                    <img id="work-img" src="" alt="Şagirdin yazı işi yüklənir..." draggable="false">
                 </div>
             </div>
 
@@ -291,6 +293,12 @@
         let currentIndex = 0;
         let studentsData = {};
 
+        // Zoom Məlumatları Bazas
+        const zoomState = {
+            'criteria-img': { scale: 1, posX: 0, posY: 0 },
+            'work-img': { scale: 1, posX: 0, posY: 0 }
+        };
+
         // Giriş Düyməsi
         document.getElementById('btn-login').addEventListener('click', function() {
             const pass = document.getElementById('passcode').value;
@@ -337,7 +345,7 @@
             document.getElementById('criteria-img').src = student.criteria_url;
             document.getElementById('work-img').src = student.work_url;
             
-            // Şəkil miqyaslarını sıfırla
+            // Zoom-u sıfırla
             resetZoom('criteria-img');
             resetZoom('work-img');
 
@@ -381,70 +389,70 @@
         });
 
         // ==========================================
-        // MOUSE WHEEL ZOOM VƏ DRAG (SÜRÜŞDÜRMƏ) KODU
+        // STABİL VƏ XƏTASIZ ZOOM & PAN LOGİKASI
         // ==========================================
-        function enableZoomAndPan(containerId, imgId) {
+        function resetZoom(imgId) {
+            const img = document.getElementById(imgId);
+            if (!img) return;
+            
+            zoomState[imgId] = { scale: 1, posX: 0, posY: 0 };
+            img.style.transform = `translate(0px, 0px) scale(1)`;
+        }
+
+        function initZoomPan(containerId, imgId) {
             const container = document.getElementById(containerId);
             const img = document.getElementById(imgId);
+            if (!container || !img) return;
 
-            let scale = 1;
-            let pointX = 0;
-            let pointY = 0;
+            let isDragging = false;
             let startX = 0;
             let startY = 0;
-            let isDragging = false;
 
-            function updateTransform() {
-                img.style.transform = `translate(${pointX}px, ${pointY}px) scale(${scale})`;
+            function applyTransform() {
+                const state = zoomState[imgId];
+                img.style.transform = `translate(${state.posX}px, ${state.posY}px) scale(${state.scale})`;
             }
 
+            // Diyircəklə Zoom
             container.addEventListener('wheel', function(e) {
                 e.preventDefault();
-                const xs = (e.clientX - pointX) / scale;
-                const ys = (e.clientY - pointY) / scale;
-                const delta = -e.deltaY;
+                const state = zoomState[imgId];
+                
+                if (e.deltaY < 0) {
+                    state.scale += 0.15;
+                } else {
+                    state.scale -= 0.15;
+                }
 
-                (delta > 0) ? (scale *= 1.15) : (scale /= 1.15);
-                scale = Math.min(Math.max(0.8, scale), 5); // Max 5x zoom
+                state.scale = Math.min(Math.max(0.8, state.scale), 6);
+                applyTransform();
+            }, { passive: false });
 
-                updateTransform();
-            });
-
+            // Sürüşdürmə (Drag)
             container.addEventListener('mousedown', function(e) {
                 e.preventDefault();
-                startX = e.clientX - pointX;
-                startY = e.clientY - pointY;
                 isDragging = true;
+                const state = zoomState[imgId];
+                startX = e.clientX - state.posX;
+                startY = e.clientY - state.posY;
             });
 
             window.addEventListener('mousemove', function(e) {
                 if (!isDragging) return;
-                pointX = e.clientX - startX;
-                pointY = e.clientY - startY;
-                updateTransform();
+                const state = zoomState[imgId];
+                state.posX = e.clientX - startX;
+                state.posY = e.clientY - startY;
+                applyTransform();
             });
 
             window.addEventListener('mouseup', function() {
                 isDragging = false;
             });
-
-            img.dataset.reset = function() {
-                scale = 1;
-                pointX = 0;
-                pointY = 0;
-                updateTransform();
-            };
         }
 
-        function resetZoom(imgId) {
-            const img = document.getElementById(imgId);
-            if (img.dataset.reset) {
-                img.dataset.reset();
-            }
-        }
-
-        enableZoomAndPan('box-criteria', 'criteria-img');
-        enableZoomAndPan('box-work', 'work-img');
+        // Dinamik interfeysi işə salırıq
+        initZoomPan('box-criteria', 'criteria-img');
+        initZoomPan('box-work', 'work-img');
     </script>
 </body>
 </html>
