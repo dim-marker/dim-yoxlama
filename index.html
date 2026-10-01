@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DİM Şagird İşlərinin Yoxlanılması Sistemi</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <header>
+        <h2>DİM Şagird İşlərinin Yoxlanılması Sistemi</h2>
+        <span id="user-display">Müəllim Paneli</span>
+    </header>
+
+    <!-- Giriş Bölməsi -->
+    <div class="auth-container" id="login-box">
+        <h2>Sistemə Giriş</h2>
+        <input type="text" id="teacher-username" placeholder="İstifadəçi adı (FİN)" maxlength="7">
+        <input type="password" id="teacher-password" placeholder="Şifrə (FİN)" maxlength="7">
+        <button id="btn-login">Daxil ol</button>
+    </div>
+
+    <!-- Qiymətləndirmə Paneli -->
+    <div class="app-container" id="app-box">
+        <div class="main-content">
+            
+            <!-- Tablı Pəncərə -->
+            <div class="card">
+                <div class="tab-header">
+                    <button class="tab-btn active" onclick="switchTab('work-tab')">Şagirdin Cavabı</button>
+                    <button class="tab-btn" onclick="switchTab('criteria-tab')">Qiymətləndirmə Meyarı</button>
+                </div>
+
+                <!-- Şagirdin İşi Tabı -->
+                <div class="tab-content active" id="work-tab">
+                    <div class="img-box" id="box-work">
+                        <img id="work-img" src="" alt="Şagirdin yazı işi yüklənir..." draggable="false">
+                    </div>
+                </div>
+
+                <!-- Meyar Tabı -->
+                <div class="tab-content" id="criteria-tab">
+                    <div class="img-box" id="box-criteria">
+                        <img id="criteria-img" src="" alt="Meyar şəkli yüklənir..." draggable="false">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Qiymətləndirmə Formu -->
+            <div class="evaluation-panel">
+                <div class="panel-header">
+                    <div>
+                        <span class="student-info" id="student-name">Şagird: -</span>
+                        <span id="status-tag" class="status-badge">Yoxlanılmayıb</span>
+                    </div>
+
+                    <!-- İrəli/Geri Düymələri -->
+                    <div class="nav-controls">
+                        <button class="btn-nav" id="btn-prev">⬅ Əvvəlki</button>
+                        <button class="btn-nav" id="btn-next">Növbəti ➡</button>
+                    </div>
+                </div>
+
+                <div class="inputs-group">
+                    <!-- Bal Seçimi (Max 3) -->
+                    <select id="score-select">
+                        <option value="">Bal seçin</option>
+                        <option value="0">0 Bal</option>
+                        <option value="1">1 Bal</option>
+                        <option value="2">2 Bal</option>
+                        <option value="3">3 Bal</option>
+                    </select>
+
+                    <!-- 1000 Simvol Rəy Yeri -->
+                    <div class="textarea-box">
+                        <textarea id="feedback-input" maxlength="1000" placeholder="Qeyd və ya rəy yazın (max 1000 simvol)..."></textarea>
+                        <span class="char-counter" id="char-count">0 / 1000</span>
+                    </div>
+
+                    <button class="btn-submit" id="btn-save">Yadda Saxla</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script type="module" src="app.js"></script>
+    <script>
+        // Tab Dəyişmə Funksiyası
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(tabId).classList.add('active');
+        }
+    </script>
+</body>
+</html>
