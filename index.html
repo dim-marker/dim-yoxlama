@@ -27,7 +27,6 @@
     <!-- Müəllim Qiymətləndirmə Paneli -->
     <div class="app-container" id="app-box">
         <div class="main-content">
-            
             <div class="card">
                 <div class="tab-header">
                     <button class="tab-btn active" id="tab-work-btn">Şagirdin Cavabı</button>
@@ -77,7 +76,6 @@
                     <button class="btn-submit" id="btn-save">Yadda Saxla və Növbəti</button>
                 </div>
             </div>
-
         </div>
     </div>
 
@@ -87,6 +85,8 @@
         <div class="admin-layout">
             <div class="admin-sidebar">
                 <h3>Ekspertlər (Markerlər)</h3>
+                <!-- Marker Axtarış Xanası -->
+                <input type="text" id="admin-search-marker" placeholder="Marker axtar (Ad və ya FİN)..." class="admin-search-input">
                 <ul id="teachers-list" class="teachers-list"></ul>
             </div>
             <div class="admin-main">
@@ -106,6 +106,7 @@
                                 <th>Ekspert Balı</th>
                                 <th>Rəy/Qeyd</th>
                                 <th>Nəticə</th>
+                                <th>Əməliyyat</th>
                             </tr>
                         </thead>
                         <tbody id="admin-eval-body"></tbody>
@@ -136,6 +137,24 @@
                 </table>
             </div>
             <button class="btn-close-modal" id="btn-close-modal">Bağla</button>
+        </div>
+    </div>
+
+    <!-- Admin üçün Şagirdin İşi Modalı -->
+    <div class="modal-overlay" id="admin-view-modal">
+        <div class="modal-content admin-modal-wide">
+            <h2 id="admin-modal-title">Şagirdin İşi</h2>
+            <div class="admin-modal-grid">
+                <div class="admin-img-box">
+                    <h4>Şagirdin Cavabı</h4>
+                    <img id="admin-modal-work-img" src="" alt="Şagird işi yüklənir...">
+                </div>
+                <div class="admin-img-box">
+                    <h4>Qiymətləndirmə Meyarı</h4>
+                    <img id="admin-modal-criteria-img" src="" alt="Meyar yüklənir...">
+                </div>
+            </div>
+            <button class="btn-close-modal" id="btn-close-admin-modal">Bağla</button>
         </div>
     </div>
 

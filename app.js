@@ -24,6 +24,7 @@ let currentIndex = 0;
 let studentsData = {};
 let teacherEvaluations = {};
 
+let allTeachersData = {}; // Admin paneli üçün bütün markerlər
 let selectedAdminTeacherFin = null;
 
 const zoomState = {
@@ -31,7 +32,6 @@ const zoomState = {
     'work-img': { scale: 1, posX: 0, posY: 0 }
 };
 
-// Massivi təsadüfi qarışdırmaq funksiyası (Randomize)
 function shuffleArray(array) {
     for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -56,7 +56,7 @@ document.getElementById('feedback-input').addEventListener('input', function() {
     document.getElementById('char-count').innerText = `${this.value.length} / 1000`;
 });
 
-// Giriş Logikası (Admin və Müəllim)
+// Giriş Logikası
 document.getElementById('btn-login').addEventListener('click', async function() {
     const username = document.getElementById('teacher-username').value.trim().toUpperCase();
     const password = document.getElementById('teacher-password').value.trim().toUpperCase();
@@ -66,7 +66,6 @@ document.getElementById('btn-login').addEventListener('click', async function() 
         return;
     }
 
-    // Admin Girişi
     if (username === "ADMIN" && password === "ADMIN123") {
         document.getElementById('user-display').innerText = "Admin Paneli";
         document.getElementById('login-box').style.display = 'none';
@@ -128,13 +127,11 @@ async function loadStudentsData() {
         if (snapshot.exists()) {
             const allStudents = snapshot.val();
             
-            // Yalnız müəllimin fənninə uyğun şagirdlər filtrlənir
             let filteredKeys = Object.keys(allStudents).filter(key => {
                 return Number(allStudents[key].SubjN) === Number(currentTeacherSubjN);
             });
 
-            // Random növbə ilə veririk
-            studentsKeys = shuffleArray(filteredKeys).slice(0, 30); // Yalnız 30 tapşırıq
+            studentsKeys = shuffleArray(filteredKeys).slice(0, 30);
             studentsData = allStudents;
 
             if (studentsKeys.length > 0) {
@@ -154,7 +151,6 @@ async function loadStudentsData() {
     }
 }
 
-// Şagirdin İşini Göstərmək (Maksimum 30 iş çərçivəsində)
 function showStudent(index) {
     if (index < 0 || index >= 30 || index >= studentsKeys.length) return;
 
@@ -190,24 +186,16 @@ function showStudent(index) {
     }
 }
 
-// Naviqasiya (Maksimum 30 iş çərçivəsində)
 document.getElementById('btn-prev').addEventListener('click', function() {
-    if (currentIndex > 0) {
-        showStudent(currentIndex - 1);
-    } else {
-        alert("İlk tapşırıqdasınız!");
-    }
+    if (currentIndex > 0) showStudent(currentIndex - 1);
+    else alert("İlk tapşırıqdasınız!");
 });
 
 document.getElementById('btn-next').addEventListener('click', function() {
-    if (currentIndex < 29 && currentIndex < studentsKeys.length - 1) {
-        showStudent(currentIndex + 1);
-    } else {
-        alert("30 tapşırıqlıq limitdəsiniz!");
-    }
+    if (currentIndex < 29 && currentIndex < studentsKeys.length - 1) showStudent(currentIndex + 1);
+    else alert("30 tapşırıqlıq limitdəsiniz!");
 });
 
-// Yadda Saxla və Növbəti
 document.getElementById('btn-save').addEventListener('click', async function() {
     const score = document.getElementById('score-select').value;
     const feedback = document.getElementById('feedback-input').value;
@@ -304,28 +292,55 @@ document.getElementById('btn-close-modal').addEventListener('click', function() 
 });
 
 // --- ADMIN PANELİ LOGİKASI ---
+
+// 1. Admin Panelinə Markerlərin Yüklənməsi
 async function loadAdminDashboard() {
     try {
         const teachersRef = ref(db, 'teachers');
         const snapshot = await get(teachersRef);
 
-        const listEl = document.getElementById('teachers-list');
-        listEl.innerHTML = "";
-
         if (snapshot.exists()) {
-            const teachers = snapshot.val();
-            Object.keys(teachers).forEach(fin => {
-                const li = document.createElement('li');
-                li.innerText = `${teachers[fin].name} (${fin})`;
-                li.addEventListener('click', () => selectTeacherForAdmin(fin, teachers[fin]));
-                listEl.appendChild(li);
-            });
+            allTeachersData = snapshot.val();
+            renderTeachersList(allTeachersData);
         }
     } catch (err) {
         alert("Admin panel yüklənərkən xəta: " + err.message);
     }
 }
 
+// Marker Siyahısını Çəkmək (Axtarışa Uyğun)
+function renderTeachersList(teachersObj) {
+    const listEl = document.getElementById('teachers-list');
+    listEl.innerHTML = "";
+
+    Object.keys(teachersObj).forEach(fin => {
+        const li = document.createElement('li');
+        li.innerText = `${teachersObj[fin].name} (${fin})`;
+        li.addEventListener('click', function() {
+            document.querySelectorAll('#teachers-list li').forEach(el => el.classList.remove('active'));
+            this.classList.add('active');
+            selectTeacherForAdmin(fin, teachersObj[fin]);
+        });
+        listEl.appendChild(li);
+    });
+}
+
+// AXTARIŞ DÜYMƏSİ (MARKER AXTARIŞI)
+document.getElementById('admin-search-marker').addEventListener('input', function() {
+    const query = this.value.trim().toLowerCase();
+    
+    const filteredTeachers = {};
+    Object.keys(allTeachersData).forEach(fin => {
+        const name = (allTeachersData[fin].name || "").toLowerCase();
+        if (name.includes(query) || fin.toLowerCase().includes(query)) {
+            filteredTeachers[fin] = allTeachersData[fin];
+        }
+    });
+
+    renderTeachersList(filteredTeachers);
+});
+
+// Marker Seçildikdə Onun Baxdığı İşlərin Göstərilməsi
 async function selectTeacherForAdmin(fin, teacherObj) {
     selectedAdminTeacherFin = fin;
     document.getElementById('expert-header').querySelector('h3').innerText = `Ekspert: ${teacherObj.name} (${fin})`;
@@ -366,8 +381,18 @@ async function selectTeacherForAdmin(fin, teacherObj) {
                     <td>${expertScore}</td>
                     <td style="text-align:left; max-width:200px;">${evals[studentKey].feedback || '-'}</td>
                     <td class="${isMatch ? 'match-true' : 'match-false'}">${isMatch ? 'Düzgün' : 'Fərqli'}</td>
+                    <td><button class="btn-view-work" data-pupil="${student.Pupilcode || studentKey}" data-sual="${student.Sual}">Bax 👁</button></td>
                 `;
                 tbody.appendChild(row);
+            });
+
+            // 2. ŞAGİRDİN YAZISINA BAXMAQ İMKANI
+            document.querySelectorAll('.btn-view-work').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const pupilCode = this.getAttribute('data-pupil');
+                    const sualNo = this.getAttribute('data-sual');
+                    openAdminWorkModal(pupilCode, sualNo);
+                });
             });
 
             const rate = totalCount > 0 ? Math.round((matchCount / totalCount) * 100) : 0;
@@ -383,7 +408,19 @@ async function selectTeacherForAdmin(fin, teacherObj) {
     }
 }
 
-// Nəticələri Sıfırla (Yenidən Yoxlanış Üçün)
+// Admin üçün Şagirdin Cavabına və Meyarına Baxış Modalı
+function openAdminWorkModal(pupilCode, sualNo) {
+    document.getElementById('admin-modal-title').innerText = `Şagird: ${pupilCode} (Sual №${sualNo})`;
+    document.getElementById('admin-modal-work-img').src = `assets/works/${pupilCode}.jpg`;
+    document.getElementById('admin-modal-criteria-img').src = `assets/criteria_${sualNo}.jpg`;
+    document.getElementById('admin-view-modal').style.display = 'flex';
+}
+
+document.getElementById('btn-close-admin-modal').addEventListener('click', function() {
+    document.getElementById('admin-view-modal').style.display = 'none';
+});
+
+// Nəticələri Sıfırla
 document.getElementById('btn-reset-evals').addEventListener('click', async function() {
     if (!selectedAdminTeacherFin) return;
 
@@ -398,7 +435,7 @@ document.getElementById('btn-reset-evals').addEventListener('click', async funct
     }
 });
 
-// Zoom / Pan Logikası
+// Zoom / Pan
 function resetZoom(imgId) {
     const img = document.getElementById(imgId);
     if (!img) return;
