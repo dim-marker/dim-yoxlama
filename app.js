@@ -17,6 +17,8 @@ const db = getDatabase(app);
 
 let currentTeacherFin = "";
 let currentTeacherName = "";
+let currentTeacherSubjN = null; // Fənn kodu (məsələn: 9 - Coğrafiya)
+
 let studentsKeys = [];
 let currentIndex = 0;
 let studentsData = {};
@@ -27,12 +29,28 @@ const zoomState = {
     'work-img': { scale: 1, posX: 0, posY: 0 }
 };
 
+// Tab Keçid Eventləri
+document.getElementById('tab-work-btn').addEventListener('click', function() {
+    switchTab('work-tab', this);
+});
+document.getElementById('tab-criteria-btn').addEventListener('click', function() {
+    switchTab('criteria-tab', this);
+});
+
+function switchTab(tabId, btn) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    
+    btn.classList.add('active');
+    document.getElementById(tabId).classList.add('active');
+}
+
 // Simvol Sayğacı
 document.getElementById('feedback-input').addEventListener('input', function() {
     document.getElementById('char-count').innerText = `${this.value.length} / 1000`;
 });
 
-// Giriş Yoxlanışı (İstifadəçi adı = FİN, Şifrə = FİN)
+// Giriş Yoxlanışı
 document.getElementById('btn-login').addEventListener('click', async function() {
     const username = document.getElementById('teacher-username').value.trim().toUpperCase();
     const password = document.getElementById('teacher-password').value.trim().toUpperCase();
@@ -43,7 +61,7 @@ document.getElementById('btn-login').addEventListener('click', async function() 
     }
 
     if (username !== password) {
-        alert("İstifadəçi adı və şifrə eyni olmalıdır (FİN koda uyğun)!");
+        alert("İstifadəçi adı və şifrə eyni olmalıdır (FİN)!");
         return;
     }
 
@@ -55,6 +73,7 @@ document.getElementById('btn-login').addEventListener('click', async function() 
             const teacherData = snapshot.val();
             currentTeacherFin = username;
             currentTeacherName = teacherData.name;
+            currentTeacherSubjN = Number(teacherData.subject_id); // Müəllimin fənn ID-si
 
             document.getElementById('user-display').innerText = `Müəllim: ${currentTeacherName} (${currentTeacherFin})`;
             document.getElementById('login-box').style.display = 'none';
@@ -69,7 +88,7 @@ document.getElementById('btn-login').addEventListener('click', async function() 
     }
 });
 
-// Bazadan Məlumatları Oxumaq
+// Şagird Məlumatlarını Fənn Kodu ilə Oxumaq
 async function loadStudentsData() {
     try {
         const studentsRef = ref(db, 'students');
@@ -83,9 +102,20 @@ async function loadStudentsData() {
         }
 
         if (snapshot.exists()) {
-            studentsData = snapshot.val();
-            studentsKeys = Object.keys(studentsData);
-            showStudent(currentIndex);
+            const allStudents = snapshot.val();
+            
+            // Müəllimin fənn koduna (SubjN) uyğun şagirdləri filtrləyirik
+            studentsKeys = Object.keys(allStudents).filter(key => {
+                return Number(allStudents[key].SubjN) === Number(currentTeacherSubjN);
+            });
+
+            studentsData = allStudents;
+
+            if (studentsKeys.length > 0) {
+                showStudent(currentIndex);
+            } else {
+                alert("Sizin fənninizə uygun heç bir tapşırıq tapılmadı!");
+            }
         } else {
             alert("Bazada şagird məlumatı tapılmadı!");
         }
@@ -94,7 +124,7 @@ async function loadStudentsData() {
     }
 }
 
-// Cari Şagirdin İşini Ekrana Çıxarmaq
+// Cari Şagirdin İşini Göstərmək
 function showStudent(index) {
     if (index < 0 || index >= studentsKeys.length) return;
 
@@ -103,15 +133,15 @@ function showStudent(index) {
     const student = studentsData[key];
     const teacherEval = teacherEvaluations[key];
 
-    document.getElementById('student-name').innerText = `Şagird: ${student.name} (${currentIndex + 1}/${studentsKeys.length})`;
+    document.getElementById('student-name').innerText = `Şagird: ${student.Pupilcode || key} (Sual №${student.Sual}) [${currentIndex + 1}/${studentsKeys.length}]`;
     
-    document.getElementById('criteria-img').src = student.criteria_url;
-    document.getElementById('work-img').src = student.work_url;
+    // Şəkil linkləri
+    document.getElementById('criteria-img').src = `assets/criteria_${student.Sual}.jpg`;
+    document.getElementById('work-img').src = `assets/works/${student.Pupilcode}.jpg`;
     
     resetZoom('criteria-img');
     resetZoom('work-img');
 
-    // Əvvəlcədən yazılmış bal və rəy varsa gətirir
     if (teacherEval && teacherEval.score !== undefined) {
         document.getElementById('score-select').value = teacherEval.score;
         document.getElementById('feedback-input').value = teacherEval.feedback || '';
@@ -148,7 +178,7 @@ document.getElementById('btn-next').addEventListener('click', function() {
     }
 });
 
-// Yadda Saxla Düyməsi
+// Yadda Saxla və Növbətiyə Keç (Alertsiz)
 document.getElementById('btn-save').addEventListener('click', async function() {
     const score = document.getElementById('score-select').value;
     const feedback = document.getElementById('feedback-input').value;
@@ -161,6 +191,7 @@ document.getElementById('btn-save').addEventListener('click', async function() {
     const currentKey = studentsKeys[currentIndex];
 
     try {
+        // Məlumatı bazaya saxlayırıq
         await set(ref(db, `evaluations_by_teacher/${currentTeacherFin}/${currentKey}`), {
             teacher_name: currentTeacherName,
             score: Number(score),
@@ -180,11 +211,63 @@ document.getElementById('btn-save').addEventListener('click', async function() {
             feedback: feedback
         };
 
-        alert("Məlumat yadda saxlanıldı!");
-        showStudent(currentIndex);
+        // Növbətiyə keçid
+        if (currentIndex < studentsKeys.length - 1) {
+            currentIndex++;
+            showStudent(currentIndex);
+
+            // Əgər tam 30 iş tamamlanıbsa hesabatı çıxarırıq
+            if (Object.keys(teacherEvaluations).length === 30) {
+                generateComparisonReport();
+            }
+        } else {
+            generateComparisonReport();
+        }
     } catch (err) {
         alert("Xal bazaya yazılarkən xəta baş verdi: " + err.message);
     }
+});
+
+// Etalon və Ekspert Qiymətlərini Müqayisə Edən Hesabat
+function generateComparisonReport() {
+    const reportBody = document.getElementById('report-body');
+    reportBody.innerHTML = "";
+    
+    let matchCount = 0;
+    let totalCount = 0;
+
+    studentsKeys.forEach((key, index) => {
+        if (index >= 30) return; // Yalnız ilk 30 iş
+
+        const student = studentsData[key];
+        const teacherEval = teacherEvaluations[key];
+
+        const etalonScore = student.Result !== undefined ? Number(student.Result) : "-";
+        const expertScore = teacherEval ? Number(teacherEval.score) : "-";
+
+        const isMatch = etalonScore === expertScore;
+        if (isMatch) matchCount++;
+        totalCount++;
+
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${index + 1}</td>
+            <td>${student.Pupilcode || key}</td>
+            <td>${student.Sual || '-'}</td>
+            <td>${etalonScore}</td>
+            <td>${expertScore}</td>
+            <td class="${isMatch ? 'match-true' : 'match-false'}">${isMatch ? 'Düzgün' : 'Fərqli'}</td>
+        `;
+        reportBody.appendChild(row);
+    });
+
+    const rate = totalCount > 0 ? Math.round((matchCount / totalCount) * 100) : 0;
+    document.getElementById('accuracy-rate').innerText = `Uyğunluq Faizi: ${rate}% (${matchCount}/${totalCount} dəqiq üst-üstə düşmə)`;
+    document.getElementById('report-modal').style.display = 'flex';
+}
+
+document.getElementById('btn-close-modal').addEventListener('click', function() {
+    document.getElementById('report-modal').style.display = 'none';
 });
 
 // Zoom / Pan Logikası
