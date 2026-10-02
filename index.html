@@ -85,7 +85,6 @@
         <div class="admin-layout">
             <div class="admin-sidebar">
                 <h3>Ekspertlər (Markerlər)</h3>
-                <!-- Real-vaxt Marker Axtarışı -->
                 <input type="text" id="admin-search-marker" placeholder="Marker axtar (Ad və ya FİN)..." class="admin-search-input">
                 <ul id="teachers-list" class="teachers-list"></ul>
             </div>
@@ -95,14 +94,12 @@
                     <button id="btn-reset-evals" class="btn-reset" style="display: none;">Nəticələri Sıfırla (Yenidən Yoxlama)</button>
                 </div>
 
-                <!-- Statistika Kartları -->
                 <div id="expert-stats" class="stats-cards">
                     <div class="stat-card"><b>Yoxlanılan İş:</b> - / 30</div>
                     <div class="stat-card"><b>Uyğunluq Faizi:</b> -</div>
                     <div class="stat-card"><b>Status:</b> -</div>
                 </div>
 
-                <!-- Yoxlanılan Tapşırıqlar Cədvəli -->
                 <div class="table-wrapper">
                     <table>
                         <thead>
@@ -128,11 +125,37 @@
         </div>
     </div>
 
+    <!-- İlk 5 İzahlı İş üçün Aralıq Müqayisə Modalı -->
+    <div class="modal-overlay" id="first5-modal">
+        <div class="modal-content admin-modal-wide">
+            <h2>İlk 5 İzahlı İşin Yoxlama Nəticələri Və Müqayisəsi</h2>
+            <p id="first5-accuracy-rate" style="font-weight: bold; color: #2c3e50;"></p>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>№</th>
+                            <th>Şagird Kodu</th>
+                            <th>Sual №</th>
+                            <th>Etalon Bal</th>
+                            <th>Etalon İzahı</th>
+                            <th>Müəllim Balı</th>
+                            <th>Müəllim Rəyi</th>
+                            <th>Nəticə</th>
+                        </tr>
+                    </thead>
+                    <tbody id="first5-body"></tbody>
+                </table>
+            </div>
+            <button class="btn-submit" id="btn-continue-25" style="align-self: flex-end;">Qalan 25 İşə Keç ➡</button>
+        </div>
+    </div>
+
     <!-- 30 İş Yekun Hesabat Modalı (Müəllim üçün) -->
     <div class="modal-overlay" id="report-modal">
-        <div class="modal-content">
-            <h2>Yoxlama Yekunlaşdı (30 İş)</h2>
-            <p id="accuracy-rate">Uyğunluq Faizi: 0%</p>
+        <div class="modal-content admin-modal-wide">
+            <h2>Yoxlama Yekunlaşdı (Bütün 30 İş)</h2>
+            <p id="accuracy-rate" style="font-weight: bold; color: #2c3e50;"></p>
             <div class="table-wrapper">
                 <table id="report-table">
                     <thead>
@@ -141,7 +164,9 @@
                             <th>Şagird Kodu</th>
                             <th>Sual №</th>
                             <th>Etalon Bal</th>
+                            <th>Etalon İzahı</th>
                             <th>Ekspert Balı</th>
+                            <th>Ekspert Rəyi</th>
                             <th>Nəticə</th>
                         </tr>
                     </thead>
