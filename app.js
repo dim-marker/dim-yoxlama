@@ -28,7 +28,7 @@ let teacherEvaluations = {};
 let allTeachersData = {};
 let selectedAdminTeacherFin = null;
 
-// Zoom və Pan vəziyyəti (həm müəllim, həm admin paneli üçün)
+// Zoom və Pan vəziyyəti
 const zoomState = {
     'criteria-img': { scale: 1, posX: 0, posY: 0 },
     'work-img': { scale: 1, posX: 0, posY: 0 },
@@ -60,7 +60,7 @@ document.getElementById('feedback-input').addEventListener('input', function() {
     document.getElementById('char-count').innerText = `${this.value.length} / 1000`;
 });
 
-// Sistemə Giriş (Admin və Müəllim)
+// Sistemə Giriş
 document.getElementById('btn-login').addEventListener('click', async function() {
     const username = document.getElementById('teacher-username').value.trim().toUpperCase();
     const password = document.getElementById('teacher-password').value.trim().toUpperCase();
@@ -70,7 +70,6 @@ document.getElementById('btn-login').addEventListener('click', async function() 
         return;
     }
 
-    // Admin Girişi
     if (username === "ADMIN" && password === "ADMIN123") {
         document.getElementById('user-display').innerText = "Admin Paneli";
         document.getElementById('login-box').style.display = 'none';
@@ -116,7 +115,7 @@ document.getElementById('btn-logout').addEventListener('click', function() {
     }
 });
 
-// Müəllim üçün Şagird Məlumatlarını Yükləmək
+// Şagird Məlumatlarının Yüklənməsi və Məntiqi Sıralanması (5 İzahlı + 25 İzahsız)
 async function loadStudentsData() {
     try {
         const studentsRef = ref(db, 'students');
@@ -131,31 +130,51 @@ async function loadStudentsData() {
 
         if (snapshot.exists()) {
             const allStudents = snapshot.val();
-            
+
+            // Müəllimin fənninə uyğun tapşırıqlar
             let filteredKeys = Object.keys(allStudents).filter(key => {
                 return Number(allStudents[key].SubjN) === Number(currentTeacherSubjN);
             });
 
-            studentsKeys = shuffleArray(filteredKeys).slice(0, 30);
+            // İzahı olan və olmayan işləri ayırırıq
+            let keysWithEx = filteredKeys.filter(k => allStudents[k].izah && allStudents[k].izah.trim() !== "");
+            let keysWithoutEx = filteredKeys.filter(k => !allStudents[k].izah || allStudents[k].izah.trim() === "");
+
+            if (keysWithEx.length < 5) {
+                alert("Bazada izahı olan kifayət qədər (minimum 5) tapşırıq tapılmadı!");
+                return;
+            }
+
+            // İlk 5 iş mütləq izahlı olanlardan qarışdırılaraq seçilir
+            let first5 = shuffleArray(keysWithEx).slice(0, 5);
+
+            // Qalan 25 iş isə qalan izahlı və izahsız işlərdən qarışıq seçilir
+            let remainingPool = [...keysWithEx.filter(k => !first5.includes(k)), ...keysWithoutEx];
+            let remaining25 = shuffleArray(remainingPool).slice(0, 25);
+
+            // Cəmi 30 iş təşkil olunur
+            studentsKeys = [...first5, ...remaining25];
             studentsData = allStudents;
 
             if (studentsKeys.length > 0) {
                 showStudent(currentIndex);
-                
+
+                // Əgər artıq 30 iş də yoxlanıbsa yekun modalı aç
                 if (Object.keys(teacherEvaluations).length >= 30) {
                     generateComparisonReport();
                 }
             } else {
-                alert("Sizin fənninizə uyğun heç bir tapşırıq tapılmadı!");
+                alert("Sizin fənninizə uyğun tapşırıq tapılmadı!");
             }
         } else {
             alert("Bazada şagird məlumatı tapılmadı!");
         }
     } catch (err) {
-        alert("Baza ilə əlaqə xətası: " + err.message);
+        alert("Baza xətası: " + err.message);
     }
 }
 
+// Şagirdin Şəkli və Meyarının Göstərilməsi
 function showStudent(index) {
     if (index < 0 || index >= 30 || index >= studentsKeys.length) return;
 
@@ -165,8 +184,9 @@ function showStudent(index) {
     const teacherEval = teacherEvaluations[key];
 
     document.getElementById('student-name').innerText = `Şagird: ${student.Pupilcode || key} (Sual №${student.Sual}) [${currentIndex + 1}/30]`;
-    
-    document.getElementById('criteria-img').src = `assets/criteria_${student.Sual}.jpg`;
+
+    // Meyar şəkli yenilənmiş formata uyğun: criteria_{ex_id}_{Sual}.jpg
+    document.getElementById('criteria-img').src = `assets/criteria_${student.ex_id}_${student.Sual}.jpg`;
     document.getElementById('work-img').src = `assets/works/${student.Pupilcode}.jpg`;
     
     resetZoom('criteria-img');
@@ -201,6 +221,7 @@ document.getElementById('btn-next').addEventListener('click', function() {
     else alert("30 tapşırıqlıq limitdəsiniz!");
 });
 
+// Qiymətləndirmənin Saxlanılması
 document.getElementById('btn-save').addEventListener('click', async function() {
     const score = document.getElementById('score-select').value;
     const feedback = document.getElementById('feedback-input').value;
@@ -229,6 +250,13 @@ document.getElementById('btn-save').addEventListener('click', async function() {
 
         teacherEvaluations[currentKey] = { score: Number(score), feedback: feedback };
 
+        // DƏYİŞİKLİK: 5-ci tapşırıq tamamlandıqda Aralıq Müqayisə Modalı çıxsın
+        if (currentIndex === 4) {
+            showFirst5ComparisonModal();
+            return;
+        }
+
+        // 30 tapşırıq tamamlandıqda Yekun Modal çıxsın
         if (Object.keys(teacherEvaluations).length >= 30) {
             generateComparisonReport();
             return;
@@ -239,7 +267,53 @@ document.getElementById('btn-save').addEventListener('click', async function() {
             showStudent(currentIndex);
         }
     } catch (err) {
-        alert("Xal bazaya yazılarkən xəta baş verdi: " + err.message);
+        alert("Xal yazılarkən xəta baş verdi: " + err.message);
+    }
+});
+
+// İlk 5 İzahlı İş üçün Aralıq Müqayisə Modalı
+function showFirst5ComparisonModal() {
+    const tbody = document.getElementById('first5-body');
+    tbody.innerHTML = "";
+
+    let matchCount = 0;
+
+    studentsKeys.slice(0, 5).forEach((key, index) => {
+        const student = studentsData[key];
+        const teacherEval = teacherEvaluations[key];
+
+        const etalonScore = student.Result !== undefined ? Number(student.Result) : "-";
+        const expertScore = teacherEval ? Number(teacherEval.score) : "-";
+        const etalonIzah = student.izah || "-";
+        const expertFeedback = teacherEval ? (teacherEval.feedback || "-") : "-";
+
+        const isMatch = etalonScore === expertScore;
+        if (isMatch) matchCount++;
+
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${index + 1}</td>
+            <td>${student.Pupilcode || key}</td>
+            <td>${student.Sual || '-'}</td>
+            <td><b>${etalonScore}</b></td>
+            <td style="text-align:left; max-width:180px; word-break:break-word;">${etalonIzah}</td>
+            <td><b>${expertScore}</b></td>
+            <td style="text-align:left; max-width:180px; word-break:break-word;">${expertFeedback}</td>
+            <td class="${isMatch ? 'match-true' : 'match-false'}">${isMatch ? 'Düzgün' : 'Fərqli'}</td>
+        `;
+        tbody.appendChild(row);
+    });
+
+    const rate = Math.round((matchCount / 5) * 100);
+    document.getElementById('first5-accuracy-rate').innerText = `İlk 5 İzahlı İş üzrə Uyğunluq: ${rate}% (${matchCount}/5 dəqiq üst-üstə düşmə)`;
+    document.getElementById('first5-modal').style.display = 'flex';
+}
+
+document.getElementById('btn-continue-25').addEventListener('click', function() {
+    document.getElementById('first5-modal').style.display = 'none';
+    if (currentIndex < 29) {
+        currentIndex++;
+        showStudent(currentIndex);
     }
 });
 
@@ -255,6 +329,7 @@ function disableEvaluationPanel() {
     saveBtn.style.backgroundColor = "#7f8c8d";
 }
 
+// 30 İş Yekun Hesabat Modalı
 function generateComparisonReport() {
     const reportBody = document.getElementById('report-body');
     reportBody.innerHTML = "";
@@ -268,6 +343,8 @@ function generateComparisonReport() {
 
         const etalonScore = student.Result !== undefined ? Number(student.Result) : "-";
         const expertScore = teacherEval ? Number(teacherEval.score) : "-";
+        const etalonIzah = student.izah || "-";
+        const expertFeedback = teacherEval ? (teacherEval.feedback || "-") : "-";
 
         const isMatch = etalonScore === expertScore;
         if (isMatch) matchCount++;
@@ -278,15 +355,17 @@ function generateComparisonReport() {
             <td>${index + 1}</td>
             <td>${student.Pupilcode || key}</td>
             <td>${student.Sual || '-'}</td>
-            <td>${etalonScore}</td>
-            <td>${expertScore}</td>
+            <td><b>${etalonScore}</b></td>
+            <td style="text-align:left; max-width:180px; word-break:break-word;">${etalonIzah}</td>
+            <td><b>${expertScore}</b></td>
+            <td style="text-align:left; max-width:180px; word-break:break-word;">${expertFeedback}</td>
             <td class="${isMatch ? 'match-true' : 'match-false'}">${isMatch ? 'Düzgün' : 'Fərqli'}</td>
         `;
         reportBody.appendChild(row);
     });
 
     const rate = totalCount > 0 ? Math.round((matchCount / totalCount) * 100) : 0;
-    document.getElementById('accuracy-rate').innerText = `Uyğunluq Faizi: ${rate}% (${matchCount}/${totalCount} dəqiq üst-üstə düşmə)`;
+    document.getElementById('accuracy-rate').innerText = `Yekun Uyğunluq Faizi: ${rate}% (${matchCount}/${totalCount} dəqiq üst-üstə düşmə)`;
     document.getElementById('report-modal').style.display = 'flex';
 
     disableEvaluationPanel();
@@ -297,10 +376,9 @@ document.getElementById('btn-close-modal').addEventListener('click', function() 
 });
 
 // ==========================================
-// --- ADMIN PANELİ LOGİKASI (TAM YENİLƏNMİŞ) ---
+// --- ADMIN PANELİ LOGİKASI ---
 // ==========================================
 
-// 1. Markerlərin Yüklənməsi
 async function loadAdminDashboard() {
     try {
         const teachersRef = ref(db, 'teachers');
@@ -317,7 +395,6 @@ async function loadAdminDashboard() {
     }
 }
 
-// Marker Siyahısının Ekrana Çıxarılması
 function renderTeachersList(teachersObj) {
     const listEl = document.getElementById('teachers-list');
     listEl.innerHTML = "";
@@ -345,7 +422,7 @@ function renderTeachersList(teachersObj) {
     });
 }
 
-// 2. MARKER AXTARIŞI (Real-vaxt Axtarış)
+// Marker Axtarışı
 document.getElementById('admin-search-marker').addEventListener('input', function() {
     const query = this.value.trim().toLowerCase();
     
@@ -360,7 +437,6 @@ document.getElementById('admin-search-marker').addEventListener('input', functio
     renderTeachersList(filteredTeachers);
 });
 
-// 3. Markerin Yoxladığı Tapşırıqlar, Statistika və Qeydlərin Göstərilməsi
 async function selectTeacherForAdmin(fin, teacherObj) {
     selectedAdminTeacherFin = fin;
     document.getElementById('selected-expert-title').innerText = `Ekspert: ${teacherObj.name} (${fin})`;
@@ -407,22 +483,21 @@ async function selectTeacherForAdmin(fin, teacherObj) {
                     <td style="text-align:left; max-width:200px; word-break:break-word;">${feedbackText}</td>
                     <td class="${isMatch ? 'match-true' : 'match-false'}">${isMatch ? 'Düzgün' : 'Fərqli'}</td>
                     <td>
-                        <button class="btn-view-work" data-pupil="${student.Pupilcode || studentKey}" data-sual="${student.Sual || ''}">Bax 👁</button>
+                        <button class="btn-view-work" data-pupil="${student.Pupilcode || studentKey}" data-sual="${student.Sual || ''}" data-exid="${student.ex_id || ''}">Bax 👁</button>
                     </td>
                 `;
                 tbody.appendChild(row);
             });
 
-            // 4. Markerin Yoxladığı Şagirdin Şəklinə Baxış Düymələri
             document.querySelectorAll('.btn-view-work').forEach(btn => {
                 btn.addEventListener('click', function() {
                     const pupilCode = this.getAttribute('data-pupil');
                     const sualNo = this.getAttribute('data-sual');
-                    openAdminWorkModal(pupilCode, sualNo);
+                    const exId = this.getAttribute('data-exid');
+                    openAdminWorkModal(pupilCode, sualNo, exId);
                 });
             });
 
-            // Statistika Kartlarının Yenilənməsi
             const rate = totalCount > 0 ? Math.round((matchCount / totalCount) * 100) : 0;
             const isCompleted = totalCount >= 30;
 
@@ -444,11 +519,10 @@ async function selectTeacherForAdmin(fin, teacherObj) {
     }
 }
 
-// 5. Admin üçün Şagirdin Cavabına və Meyarına Baxış Modalı
-function openAdminWorkModal(pupilCode, sualNo) {
+function openAdminWorkModal(pupilCode, sualNo, exId) {
     document.getElementById('admin-modal-title').innerText = `Şagird: ${pupilCode} (Sual №${sualNo})`;
     document.getElementById('admin-modal-work-img').src = `assets/works/${pupilCode}.jpg`;
-    document.getElementById('admin-modal-criteria-img').src = `assets/criteria_${sualNo}.jpg`;
+    document.getElementById('admin-modal-criteria-img').src = `assets/criteria_${exId}_${sualNo}.jpg`;
     
     resetZoom('admin-modal-work-img');
     resetZoom('admin-modal-criteria-img');
@@ -460,19 +534,17 @@ document.getElementById('btn-close-admin-modal').addEventListener('click', funct
     document.getElementById('admin-view-modal').style.display = 'none';
 });
 
-// 6. NƏTİCƏLƏRİN SIFIRLANIB YENİDƏN YOXLANILMASI
+// Nəticələrin Sıfırlanması
 document.getElementById('btn-reset-evals').addEventListener('click', async function() {
     if (!selectedAdminTeacherFin) return;
 
     const teacherObj = allTeachersData[selectedAdminTeacherFin];
     const teacherName = teacherObj ? teacherObj.name : selectedAdminTeacherFin;
 
-    if (confirm(`DIQQƏT!\n\n"${teacherName}" müəlliminin bütün yoxlama nəticələrini sıfırlamaq istədiyinizdən əminsiniz?\n\nBu əməliyyat geri qaytarıla bilməz və müəllim sıfırdan 30 iş yoxlamalı olacaq.`)) {
+    if (confirm(`DIQQƏT!\n\n"${teacherName}" müəlliminin bütün yoxlama nəticələrini sıfırlamaq istədiyinizdən əminsiniz?`)) {
         try {
-            // evaluations_by_teacher qovluğundan sil
             await remove(ref(db, `evaluations_by_teacher/${selectedAdminTeacherFin}`));
 
-            // evaluations_by_student qovluğundan bu müəllimin qiymətlərini silmək
             const evalStudRef = ref(db, 'evaluations_by_student');
             const evalStudSnap = await get(evalStudRef);
 
@@ -485,13 +557,10 @@ document.getElementById('btn-reset-evals').addEventListener('click', async funct
                 }
             }
 
-            alert("Nəticələr uğurla sıfırlandı! Müəllim yenidən yoxlama apara bilər.");
-            
-            // Yenidən həmin müəllimi seçib siyahını yeniləyirik
+            alert("Nəticələr uğurla sıfırlandı!");
             selectTeacherForAdmin(selectedAdminTeacherFin, teacherObj);
-
         } catch (err) {
-            alert("Sıfırlama zamanı xəta baş verdi: " + err.message);
+            alert("Sıfırlama xətası: " + err.message);
         }
     }
 });
@@ -552,10 +621,7 @@ function initZoomPan(containerId, imgId) {
     });
 }
 
-// Müəllim Paneli Zoom/Pan
 initZoomPan('box-criteria', 'criteria-img');
 initZoomPan('box-work', 'work-img');
-
-// Admin Paneli Zoom/Pan
 initZoomPan('admin-box-criteria', 'admin-modal-criteria-img');
 initZoomPan('admin-box-work', 'admin-modal-work-img');
